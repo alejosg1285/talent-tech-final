@@ -1,1 +1,5 @@
 @import "tailwindcss";
+
+.w-max-content {
+    width: max-content;
+}
