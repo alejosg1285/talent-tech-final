@@ -22,6 +22,17 @@ const activityController = {
         } catch (error) {
             return res.status(500).send(error);
         }
+    },
+    getByStudy: async (req: Request, res: Response) => {
+        try {
+            const { studyId } = req.params;
+
+            const activities: IActivity[] = await activity.find({ study: studyId, active: true }).populate('study_type');
+            console.log(activities);
+            return res.status(200).json(activities);
+        } catch (error) {
+            return res.status(500).send(error);
+        }
     }
 }
 

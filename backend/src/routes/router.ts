@@ -19,6 +19,7 @@ router.get('/study/:studyId', studyValidations.params(), validationMiddleware.va
 router.post('/activityType', activityTypeValidations.rules(), validationMiddleware.validate, activityTypeController.create);
 router.get('/activityType', activityTypeController.getAll);
 
-router.post('/activity/:studyId', activityValidations.rules(), validationMiddleware.validate, activityController.create)
+router.post('/activity/:studyId', activityValidations.rules(), validationMiddleware.validate, activityController.create);
+router.get('/activity/:studyId', studyValidations.params(), validationMiddleware.validate, activityController.getByStudy);
 
 export default router;

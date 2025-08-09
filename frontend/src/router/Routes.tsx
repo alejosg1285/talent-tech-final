@@ -4,7 +4,7 @@ import Study from "../pages/Studies";
 
 export const routes: RouteObject[] = [
     { path: '/', element: <Study /> },
-    { path: 'activities/', element: <Activities /> }
+    { path: 'activities/:studyId', element: <Activities /> }
 ];
 
 export const router = createBrowserRouter(routes);
