@@ -12,6 +12,7 @@ const requests = {
 
 const studies = {
     list: () => requests.get<IStudy[]>('study/'),
+    byId: (id: string) => requests.get<IStudy>(`study/${id}`),
 }
 
 const activities = {

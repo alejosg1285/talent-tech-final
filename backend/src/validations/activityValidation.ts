@@ -20,8 +20,19 @@ const rules = () => {
     ]
 }
 
+const params = () => {
+    return [
+        param('activityId')
+        .isString().withMessage('Activity ID not valid')
+        .notEmpty().withMessage('Activity ID is required')
+        .trim()
+        .isMongoId()
+    ]
+}
+
 const activityValidations = { 
     rules,
+    params
 };
 
 export default activityValidations;

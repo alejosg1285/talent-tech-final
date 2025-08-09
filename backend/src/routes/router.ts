@@ -7,6 +7,7 @@ import activityTypeValidations from "../validations/activityTypeValidation";
 import activityTypeController from "../controllers/activityTypeController";
 import activityValidations from "../validations/activityValidation";
 import activityController from "../controllers/activityController";
+import registerController from "../controllers/registerController";
 
 const router = Router();
 
@@ -21,5 +22,7 @@ router.get('/activityType', activityTypeController.getAll);
 
 router.post('/activity/:studyId', activityValidations.rules(), validationMiddleware.validate, activityController.create);
 router.get('/activity/:studyId', studyValidations.params(), validationMiddleware.validate, activityController.getByStudy);
+
+router.post('/register/:activityId', activityValidations.params(), validationMiddleware.validate, registerController.create);
 
 export default router;
