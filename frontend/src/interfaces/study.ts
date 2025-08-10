@@ -1,5 +1,5 @@
 export interface IStudy {
-    _id: string;
+    _id?: string;
     name: string;
     objective?: string;
     description?: string;

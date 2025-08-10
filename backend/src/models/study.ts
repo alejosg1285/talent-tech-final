@@ -6,7 +6,7 @@ const studySchema = new Schema<IStudy>({
     objective: { type: String },
     description: { type: String },
     tags: { type: [String] },
-    time_total: { type: Number },
+    time_total: { type: Number, default: 0 },
     active: { type: Boolean, default: true },
 });
 

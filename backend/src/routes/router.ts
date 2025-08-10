@@ -24,5 +24,6 @@ router.post('/activity/:studyId', activityValidations.rules(), validationMiddlew
 router.get('/activity/:studyId', studyValidations.params(), validationMiddleware.validate, activityController.getByStudy);
 
 router.post('/register/:activityId', activityValidations.params(), validationMiddleware.validate, registerController.create);
+router.get('/register/:activityId', activityValidations.params(), validationMiddleware.validate, registerController.getByActivity);
 
 export default router;

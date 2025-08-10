@@ -11,7 +11,7 @@ const studyController = {
                 name,
                 objective,
                 description,
-                tags: tags.split(';')
+                tags
             };
             await study.create(studyLocal);
 

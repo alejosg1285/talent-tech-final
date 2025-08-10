@@ -1,23 +1,36 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom"
 import * as z from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import type { IStudy } from "../interfaces/study";
-import { useMutation } from "@tanstack/react-query";
+import type { IActivityType } from "../interfaces/activityType";
 import agent from "../api/agent";
+import type { IActivityRequestDto } from "../interfaces/activity";
 import { useState } from "react";
 
-const NewStudyForm = () => {
+interface Props {
+  studyId: string
+};
+
+const NewActivityForm = ({ studyId }: Props) => {
   const navigate = useNavigate();
   const [messageCreate, setMessageCreate] = useState<string>('');
   const [errorCreate, setErrorCreate] = useState<string>('');
-
-  const { mutate: createStudyMutation, isSuccess: isSuccessCreateStudy, isPending: isPendingCreateStudy } = useMutation({
-    mutationFn: (study: IStudy) => {
-      return agent.studies.create(study);
+    
+  const { data: typesList, error: isErrorList, isLoading: isLoadingList } = useQuery<IActivityType[]>({
+    queryKey: ['getActivitiesType'],
+    queryFn: async () => {
+      const data = await agent.typesActivity.getAll();
+      console.log(data?.activityTypes);
+      return data?.activityTypes;
+    }
+  });
+  const { mutate: createActivityMutation, isSuccess: isSuccessCreateActivity, isPending: isPendingCreateActivity } = useMutation({
+    mutationFn: (activity: IActivityRequestDto) => {
+     return agent.activities.create(activity);
     },
     onSuccess: () => {
-      setMessageCreate('Estudio creado correctamente');
+      setMessageCreate('Actividad creada correctamente');
 
       setTimeout(() => {
         handleCancel();
@@ -25,45 +38,47 @@ const NewStudyForm = () => {
     },
     onError: (err) => {
       console.log(err);
-      setErrorCreate('Ocurrio un error al crear el estudio');
+      setErrorCreate('Ocurrio un error al crear la actividad');
     }
   });
 
   const handleCancel = () => {
-    navigate('/');
+    navigate(`/activities/${studyId}`);
   };
+  
+  const onSubmit = (data: IFormActivity) => {
+    const activity: IActivityRequestDto = {
+      name: data.name,
+      description: data.description,
+      time_diary: parseInt(data.time_diary),
+      study: studyId,
+      study_type: data.study_type
+    };
+    //console.log(data, activity);
+    createActivityMutation(activity);
+  }
 
   const FormSchema = z.object({
     name: z
       .string()
-      .min(5, 'El nombre de estudio debe tener al menos 5 carácteres')
-      .max(30, 'El nombre de estudio no debe ser mayor a 30 carácteres'),
+      .min(5, 'El nombre de la actividad debe tener al menos 5 carácteres')
+      .max(30, 'El nombre de la actividad no debe ser mayor a 30 carácteres'),
     description: z.string(),
-    objective: z.string(),
-    tags: z.string()
+    time_diary: z.string(),
+    study_type: z.string(),
   });
 
-  type IFormStudy = z.infer<typeof FormSchema>;
+  type IFormActivity = z.infer<typeof FormSchema>;
 
-  const { register, handleSubmit, formState: { errors }} = useForm<IFormStudy>({
-    resolver: zodResolver(FormSchema),
-  });
-
-  const onSubmit = (data: IFormStudy) => {
-    console.log(data);
-    const study: IStudy = {
-      name: data.name,
-      description: data.description,
-      objective: data.objective,
-      tags: data.tags.split(';')
-    }
-    createStudyMutation(study);
-  }
+  const { register, handleSubmit, formState: { errors }} = useForm<IFormActivity>({
+    resolver: zodResolver(FormSchema)
+  })
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
+      {studyId}
       <div className="space-y-12">
-        {!isPendingCreateStudy && errorCreate && (
+        {!isPendingCreateActivity && errorCreate && (
           <div className="flex items-center p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400" role="alert">
             <svg className="shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
               <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/>
@@ -74,7 +89,7 @@ const NewStudyForm = () => {
             </div>
           </div>
         )}
-        {!isPendingCreateStudy && messageCreate && (
+        {!isPendingCreateActivity && messageCreate && (
           <div className="flex items-center p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400" role="alert">
             <svg className="shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
               <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/>
@@ -112,24 +127,40 @@ const NewStudyForm = () => {
             </div>
           </div>
 
-          <div className="col-span-full">
-            <label htmlFor="objective" className="block text-sm/6 font-medium text-gray-900">Objetivos</label>
-            <div className="mt-2">
-              <textarea id="objective"
-                {...register("objective")}
-                className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
-                ></textarea>
-            </div>
-          </div>
-
-          <div className="col-span-full">
-            <label htmlFor="tags" className="block text-sm/6 font-medium text-gray-900">Tags</label>
-            <div className="mt-2">
-              <input id="tags"
-                type="text"
-                {...register("tags")}
-                className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+          <div className="mt-3 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+            <div className="sm:col-span-3">
+              <label htmlFor="time_diary" className="block text-sm/6 font-medium text-gray-900">Tiempo actividad</label>
+              <div className="mt-2">
+                <input id="time_diary"
+                  {...register('time_diary')}
+                  type="number"
+                  className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
                 />
+              </div>
+              {errors?.time_diary?.message && (
+                <p className="text-red-700 mb-4">{errors.time_diary.message}</p>
+              )}
+            </div>
+
+            <div className="sm:col-span-3">
+              <label htmlFor="study_type" className="block text-sm/6 font-medium text-gray-900">Tipo de actividad</label>
+              <div className="mt-2 grid grid-cols-1">
+                <select id="study_type"
+                  {...register('study_type')}
+                  className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                >
+                  {!isLoadingList && typesList && (
+                    <>
+                      {typesList.map((item: IActivityType) => (
+                        <option value={item._id}>{item.type}</option>
+                      ))}
+                    </>
+                  )}
+                </select>
+              </div>
+              {errors?.study_type?.message && (
+                <p className="text-red-700 mb-4">{errors.study_type.message}</p>
+              )}
             </div>
           </div>
         </div>
@@ -143,4 +174,4 @@ const NewStudyForm = () => {
   )
 }
 
-export default NewStudyForm
+export default NewActivityForm

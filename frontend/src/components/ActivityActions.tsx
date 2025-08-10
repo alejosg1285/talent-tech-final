@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 import type { IActivity } from "../interfaces/activity"
+import type { IRegister } from "../interfaces/register";
+import { useMutation } from "@tanstack/react-query";
+import agent from "../api/agent";
+import TableRegisters from "./TableRegisters";
 
 interface Props {
     activity: IActivity
@@ -11,24 +15,94 @@ const ActivityActions = ({ activity }: Props) => {
     const [minutes, setMinutes] = useState<number>(0);
     const [seconds, setSeconds] = useState<number>(0);
     const [isRunning, setIsRunning] = useState(false);
+    const [initialTime, setInitialTime] = useState<string>('');
+    const [messageCreate, setMessageCreate] = useState<string>('');
+    const [errorCreate, setErrorCreate] = useState<string>('');
+    const [showRegisters, setShowRegisters] = useState(false);
+    const [registersActivity, setRegistersActivity] = useState<IRegister[]>([]);
+
+    const { mutate: createRegisterMutation, isSuccess: isSuccessCreateRegister, isPending: isPendingCreateRegister } = useMutation({
+        mutationFn: (register: IRegister) => {
+            return agent.register.create(register);
+        },
+        onSuccess: () => {
+            setMessageCreate('Actividad creada correctamente');
+
+            setTimeout(() => {
+                setMessageCreate('');
+            }, 5000);
+        },
+        onError: (err) => {
+            console.log(err);
+            setErrorCreate('Ocurrio un error al crear la actividad');
+            setTimeout(() => {
+                setErrorCreate('');
+            }, 5000);
+        }
+    });
+    const { mutate: getRegistersMutation, isSuccess: isSuccessGetRegisters, isPending: isPendingGetRegisters } = useMutation({
+        mutationFn: (id: string) => {
+            return agent.register.listByActivity(id);
+        },
+        onSuccess: (res) => {
+            console.log(res);
+            setRegistersActivity(res);
+        },
+        onError: (err) => {
+            console.log(err);
+            setErrorCreate('Ocurrio un error al crear la actividad');
+            setTimeout(() => {
+                setErrorCreate('');
+            }, 5000);
+        }
+    })
 
     useEffect(() => {
         let intervalId;
         if (isRunning) {
-        intervalId = setInterval(() => {
-            setTotalSeconds(prevSeconds => prevSeconds + 1);
-        }, 1000); // Update every second
-        convertSecondsToTime(totalSeconds);
-        } else if (totalSeconds === 0) {
-        setIsRunning(false); // Stop the timer when it reaches zero
+            setInitialTime(new Date().toISOString());
+            intervalId = setInterval(() => {
+                setTotalSeconds(prevSeconds => prevSeconds + 1);
+            }, 1000);
+            convertSecondsToTime(totalSeconds);
+        } else {
+            setTotalSeconds(0);
         }
-        return () => clearInterval(intervalId); // Cleanup on unmount or dependency change
+        return () => clearInterval(intervalId);
     }, [isRunning, totalSeconds]);
+
+    useEffect(() => {
+        if (showRegisters) {
+            getRegistersMutation(activity._id);
+        }
+    }, [showRegisters]);
 
     const startTimer = () => {
         console.log(totalSeconds);
         setIsRunning(true);
     };
+
+    const stopTimer = () => {
+        console.log(totalSeconds);
+        setIsRunning(false);
+        registerActivity();
+    };
+
+    const showRegistersActivity = () => {
+        setShowRegisters(!showRegisters);
+    }
+
+    const registerActivity = () => {
+        const register: IRegister = {
+            initial_time: initialTime,
+            final_time: new Date().toISOString(),
+            activity_time: activity.time_diary,
+            total_time: totalSeconds,
+            activity: activity._id
+        };
+        console.log(register, new Date().toISOString());
+        createRegisterMutation(register);
+    }
 
     const convertSecondsToTime = (totalSecond: number) => {
         const hours = Math.floor(totalSecond / 3600);
@@ -41,7 +115,30 @@ const ActivityActions = ({ activity }: Props) => {
     }
 
   return (
-    <div className="bg-white border-gray-200 dark:bg-gray-900 rounded-md">
+    <div className="bg-white border-gray-200 dark:bg-gray-900 rounded-md mb-2">
+        {!isPendingCreateRegister && errorCreate && (
+          <div className="flex items-center p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400" role="alert">
+            <svg className="shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/>
+            </svg>
+            <span className="sr-only">Info</span>
+            <div>
+              <span className="font-medium">{ errorCreate }.</span>
+            </div>
+          </div>
+        )}
+        {!isPendingCreateRegister && messageCreate && (
+          <div className="flex items-center p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400" role="alert">
+            <svg className="shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/>
+            </svg>
+            <span className="sr-only">Info</span>
+            <div>
+              <span className="font-medium">{ messageCreate }.</span>
+            </div>
+          </div>
+        )}
+
         <div className="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
             
             <div className="flex items-center space-x-3 rtl:space-x-reverse">
@@ -73,7 +170,7 @@ const ActivityActions = ({ activity }: Props) => {
                         </li>
                     ) : (
                         <li>
-                            <button type="button" className="text-gray-900 hover:text-white border border-gray-800 hover:bg-gray-900 focus:ring-4 focus:outline-none focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2 dark:border-gray-600 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-600 dark:focus:ring-gray-800">
+                            <button type="button" onClick={stopTimer} className="text-gray-900 hover:text-white border border-gray-800 hover:bg-gray-900 focus:ring-4 focus:outline-none focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2 dark:border-gray-600 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-600 dark:focus:ring-gray-800">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="w-4 h-4">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 7.5A2.25 2.25 0 0 1 7.5 5.25h9a2.25 2.25 0 0 1 2.25 2.25v9a2.25 2.25 0 0 1-2.25 2.25h-9a2.25 2.25 0 0 1-2.25-2.25v-9Z" />
                                 </svg>
@@ -81,7 +178,7 @@ const ActivityActions = ({ activity }: Props) => {
                         </li>
                     )}
                     <li>
-                        <button type="button" className="text-blue-700 hover:text-white border border-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2 dark:border-blue-500 dark:text-blue-500 dark:hover:text-white dark:hover:bg-blue-500 dark:focus:ring-blue-800">
+                        <button type="button" onClick={showRegistersActivity} className="text-blue-700 hover:text-white border border-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2 dark:border-blue-500 dark:text-blue-500 dark:hover:text-white dark:hover:bg-blue-500 dark:focus:ring-blue-800">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
                                 <path d="M5.625 3.75a2.625 2.625 0 1 0 0 5.25h12.75a2.625 2.625 0 0 0 0-5.25H5.625ZM3.75 11.25a.75.75 0 0 0 0 1.5h16.5a.75.75 0 0 0 0-1.5H3.75ZM3 15.75a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75ZM3.75 18.75a.75.75 0 0 0 0 1.5h16.5a.75.75 0 0 0 0-1.5H3.75Z" />
                             </svg>
@@ -98,6 +195,14 @@ const ActivityActions = ({ activity }: Props) => {
             </div>
 
         </div>
+
+        {showRegisters && (
+            <div className="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
+                <div className="bg-white border-gray-200 rounded-md p-2 w-full">
+                    <TableRegisters registers={registersActivity} />
+                </div>
+            </div>
+        )}
     </div>
   )
 }

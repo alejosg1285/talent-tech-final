@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom"
+import { useNavigate, useParams } from "react-router-dom"
 import type { IActivity } from "../interfaces/activity";
 import agent from "../api/agent";
 import { useMutation } from "@tanstack/react-query";
@@ -7,6 +7,7 @@ import ActivityActions from "../components/ActivityActions";
 import type { IStudy } from "../interfaces/study";
 
 const Activities = () => {
+  const navigate = useNavigate();
   const {studyId} = useParams();
   const [activities, setActivities] = useState<IActivity[]>([]);
   const [study, setStudy] = useState<IStudy>();
@@ -34,7 +35,11 @@ const Activities = () => {
       getActivities(studyId);
       getStudy(studyId);
     }
-  }, [studyId]);  
+  }, [studyId]);
+
+  const handleNewActivity = () => {
+    navigate(`/activity/new/${studyId}`);
+  };
 
   return (
     <main>
@@ -56,6 +61,10 @@ const Activities = () => {
               <span className="sr-only">Loading...</span>
           </div>
         )}
+
+        <h3 className='tracking-wide text-center font-semibold text-2xl'>Actividades</h3>
+        <button type="button" onClick={handleNewActivity} className="text-white w-auto bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 my-3 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">Agregar</button>
+
         {!isGetPending && isGetSuccess ? (
           <>
             {activities.map((activity: IActivity) => (
