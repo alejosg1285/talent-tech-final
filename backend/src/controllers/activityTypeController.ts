@@ -10,8 +10,8 @@ const activityTypeController = {
                 type: name
             };
 
-            await activityType.create(activityTypeLocal);
-            return res.status(201).json({activityTypeLocal});
+            const typeDb = await activityType.create(activityTypeLocal);
+            return res.status(201).json(typeDb);
         } catch (error) {
             return res.status(500).send(error);
         }

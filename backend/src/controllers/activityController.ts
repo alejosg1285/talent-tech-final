@@ -16,9 +16,9 @@ const activityController = {
                 study_type,
                 study: new Types.ObjectId(studyId)
             };
-            await activity.create(activityLocal);
+            const activityDb = await activity.create(activityLocal);
 
-            return res.status(201).json({activityLocal});
+            return res.status(201).json(activityDb);
         } catch (error) {
             return res.status(500).send(error);
         }
@@ -28,7 +28,6 @@ const activityController = {
             const { studyId } = req.params;
 
             const activities: IActivity[] = await activity.find({ study: studyId, active: true }).populate('study_type');
-            console.log(activities);
             return res.status(200).json(activities);
         } catch (error) {
             return res.status(500).send(error);

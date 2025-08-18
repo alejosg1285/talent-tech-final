@@ -7,6 +7,7 @@ import type { IActivityType } from "../interfaces/activityType";
 import agent from "../api/agent";
 import type { IActivityRequestDto } from "../interfaces/activity";
 import { useState } from "react";
+import Utils from "../utils/Utils";
 
 interface Props {
   studyId: string
@@ -16,6 +17,8 @@ const NewActivityForm = ({ studyId }: Props) => {
   const navigate = useNavigate();
   const [messageCreate, setMessageCreate] = useState<string>('');
   const [errorCreate, setErrorCreate] = useState<string>('');
+  const [activityDto, setActivityDto] = useState<IActivityRequestDto>();
+  const [newActivityType, setNewActivityType] = useState<boolean>(false);
     
   const { data: typesList, error: isErrorList, isLoading: isLoadingList } = useQuery<IActivityType[]>({
     queryKey: ['getActivitiesType'],
@@ -41,21 +44,50 @@ const NewActivityForm = ({ studyId }: Props) => {
       setErrorCreate('Ocurrio un error al crear la actividad');
     }
   });
+  const { mutate: createTypeActivityMutation, isSuccess: isSuccessCreateType, isPending: isPendingCreateType } = useMutation({
+    mutationFn: (type: IActivityType) => {
+      return agent.typesActivity.create(type);
+    },
+    onSuccess: (res) => {
+      console.log(res);
+      const activity: IActivityRequestDto = activityDto!
+      activity.study_type = res._id!;
+      createActivityMutation(activity);
+    },
+    onError: (err) => {
+      console.error(err);
+    }
+  })
 
   const handleCancel = () => {
     navigate(`/activities/${studyId}`);
   };
+
+  const toggleNewActivityType = () => {
+    setNewActivityType(!newActivityType);
+  }
   
   const onSubmit = (data: IFormActivity) => {
+    if (newActivityType) {
+      const typeActivity: IActivityType = {
+        type: data.study_type
+      };
+      createTypeActivityMutation(typeActivity);
+    }
+    console.info(isPendingCreateType);
     const activity: IActivityRequestDto = {
       name: data.name,
       description: data.description,
-      time_diary: parseInt(data.time_diary),
+      time_diary: Utils.convertHoursMinutesToSeconds(parseInt(data.time_hour), parseInt(data.time_minute)),
       study: studyId,
       study_type: data.study_type
     };
-    //console.log(data, activity);
-    createActivityMutation(activity);
+
+    if (newActivityType) {
+      setActivityDto(activity);
+    } else {
+      createActivityMutation(activity);
+    }
   }
 
   const FormSchema = z.object({
@@ -64,8 +96,63 @@ const NewActivityForm = ({ studyId }: Props) => {
       .min(5, 'El nombre de la actividad debe tener al menos 5 carácteres')
       .max(30, 'El nombre de la actividad no debe ser mayor a 30 carácteres'),
     description: z.string(),
-    time_diary: z.string(),
+    time_hour: z
+      .string()
+      .trim(),
+    time_minute: z
+      .string()
+      .trim(),
     study_type: z.string(),
+  }).superRefine((data, ctx) => {
+    if (data.time_hour.length === 0 && data.time_minute.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Debe ingresar al menos una hora o minuto de actividad',
+        path: ['time_hour']
+      });
+    }
+
+    if (isNaN(parseInt(data.time_hour))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Debe ingresar una hora de actividad valida',
+        path: ['time_hour']
+      });
+    } else {
+      const val = parseInt(data.time_hour);
+      if (val <= 0 || val > 12) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Debe ingresar una hora de actividad entre 1 y 12',
+          path: ['time_hour']
+        });
+      }
+    }
+
+    if (isNaN(parseInt(data.time_minute))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Debe ingresar una hora de actividad valida',
+        path: ['time_minute']
+      });
+    } else {
+      const val = parseInt(data.time_minute);
+      if (val <= 1 || val > 60) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Debe ingresar minutos de actividad entre 1 y 60',
+          path: ['time_minute']
+        });
+      }
+    }
+
+    if (newActivityType && data.study_type.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Debe ingresar el tipo de actividad',
+        path: ['study_type']
+      })
+    }
   });
 
   type IFormActivity = z.infer<typeof FormSchema>;
@@ -76,7 +163,6 @@ const NewActivityForm = ({ studyId }: Props) => {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
-      {studyId}
       <div className="space-y-12">
         {!isPendingCreateActivity && errorCreate && (
           <div className="flex items-center p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400" role="alert">
@@ -129,34 +215,62 @@ const NewActivityForm = ({ studyId }: Props) => {
 
           <div className="mt-3 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
             <div className="sm:col-span-3">
-              <label htmlFor="time_diary" className="block text-sm/6 font-medium text-gray-900">Tiempo actividad</label>
-              <div className="mt-2">
-                <input id="time_diary"
-                  {...register('time_diary')}
+              <label htmlFor="time_hour" className="block text-sm/6 font-medium text-gray-900">Tiempo actividad</label>
+              <div className="mt-2 grid-rows-1">
+                <input id="time_hour"
+                  {...register('time_hour')}
                   type="number"
-                  className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                  placeholder="Hours"
+                  className="max-w-24 rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
                 />
+                <span className="text-sm/6 font-medium text-gray-900 mx-2">hh</span>
+                <input id="time_minute"
+                  {...register('time_minute')}
+                  type="number"
+                  placeholder="Minutes"
+                  className="max-w-24 rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                />
+                <span className="text-sm/6 font-medium text-gray-900 mx-2">mm</span>
               </div>
-              {errors?.time_diary?.message && (
-                <p className="text-red-700 mb-4">{errors.time_diary.message}</p>
+              {errors?.time_hour?.message && (
+                <p className="text-red-700 mb-4">{errors.time_hour.message}</p>
+              )}
+              {errors?.time_minute?.message && (
+                <p className="text-red-700 mb-4">{errors.time_minute.message}</p>
               )}
             </div>
 
             <div className="sm:col-span-3">
               <label htmlFor="study_type" className="block text-sm/6 font-medium text-gray-900">Tipo de actividad</label>
               <div className="mt-2 grid grid-cols-1">
-                <select id="study_type"
-                  {...register('study_type')}
-                  className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
-                >
-                  {!isLoadingList && typesList && (
-                    <>
-                      {typesList.map((item: IActivityType) => (
-                        <option value={item._id}>{item.type}</option>
-                      ))}
-                    </>
-                  )}
-                </select>
+                {!newActivityType ? (
+                  <select id="study_type"
+                    {...register('study_type')}
+                    className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                  >
+                    {!isLoadingList && typesList && (
+                      <>
+                        {typesList.map((item: IActivityType) => (
+                          <option value={item._id} key={item._id}>{item.type}</option>
+                        ))}
+                      </>
+                    )}
+                    <option onClick={toggleNewActivityType}>Nuevo tipo</option>
+                  </select>
+                ) : (
+                  <div className="relative w-full">
+                    <input id="new_study_type"
+                      {...register('study_type')}
+                      type="text"
+                      className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                      placeholder="Tipo actividad" />
+                    <button type="submit" onClick={toggleNewActivityType} className="absolute top-0 end-0 p-2.5 h-full text-sm font-medium text-white bg-blue-700 rounded-e-lg border border-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                        <path fillRule="evenodd" d="M5.47 5.47a.75.75 0 0 1 1.06 0L12 10.94l5.47-5.47a.75.75 0 1 1 1.06 1.06L13.06 12l5.47 5.47a.75.75 0 1 1-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 0 1-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                </div>
+                )}
               </div>
               {errors?.study_type?.message && (
                 <p className="text-red-700 mb-4">{errors.study_type.message}</p>

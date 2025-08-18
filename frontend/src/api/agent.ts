@@ -4,7 +4,7 @@ import type { IActivity, IActivityRequestDto } from "../interfaces/activity";
 import type { IActivityType } from "../interfaces/activityType";
 import type { IRegister } from "../interfaces/register";
 
-axios.defaults.baseURL = 'http://127.0.0.1:3030/';
+axios.defaults.baseURL = import.meta.env.VITE_BASE_URL;
 
 const responseBody = <T>(response: AxiosResponse<T>) => response.data;
 
@@ -26,6 +26,7 @@ const activities = {
 
 const typesActivity = {
     getAll: () => requests.get<IActivityType[]>('/activityType'),
+    create: (type: IActivityType) => requests.post<IActivityType>('/activityType',type),
 }
 
 const register = {
